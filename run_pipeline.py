@@ -1,27 +1,53 @@
 import os
-from erpnext_analyzer.core.parser import ERPNextParser
+import json
+from erpnext_analyzer.core.metadata_engine import MetadataEngine
+from erpnext_analyzer.core.controller_engine import ControllerEngine
+from erpnext_analyzer.core.hook_engine import HookEngine
+from erpnext_analyzer.core.snapshot_connector import SnapshotConnector
+from erpnext_analyzer.core.ai_formatter import AIFormatter
 
-# Use absolute paths to avoid any "No Output" confusion
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-REPO_PATH = os.path.join(BASE_DIR, "Intern_ERPNext")
+# CONFIGURATION
+REPO_PATH = r"../"
+OUTPUT_DIR = "snapshots"
 
-def test_discovery(path):
-    print(f"--- Discovery Test for: {path} ---")
-    py_files = []
-    json_files = []
-    for root, _, files in os.walk(path):
-        for f in files:
-            if f.endswith(".py"): py_files.append(f)
-            if f.endswith(".json"): json_files.append(f)
+def run_all():
+    if not os.path.exists(OUTPUT_DIR): os.makedirs(OUTPUT_DIR)
     
-    print(f"Found {len(py_files)} Python files.")
-    print(f"Found {len(json_files)} JSON files.")
+    # Init Engines
+    meta_eng = MetadataEngine()
+    ctrl_eng = ControllerEngine()
+    hook_eng = HookEngine()
+    conn = SnapshotConnector(os.path.dirname(REPO_PATH))
+    formatter = AIFormatter()
     
-    if not py_files and not json_files:
-        print("ERROR: No files found! Check if the folder 'Intern_ERPNext' is in the same directory as this script.")
+    inventory = {
+        "repo_info": {"commit": conn.get_latest_commit()},
+        "doctypes": {},
+        "global_hooks": hook_eng.analyze(os.path.join(REPO_PATH, "hooks.py"))
+    }
+
+    print("🛠️ Analyzing System...")
+
+    for root, _, files in os.walk(REPO_PATH):
+        if "doctype" in root:
+            dt_name = os.path.basename(root)
+            inventory["doctypes"][dt_name] = {}
+            for file in files:
+                fpath = os.path.join(root, file)
+                if file.endswith(".json"):
+                    inventory["doctypes"][dt_name]["schema"] = meta_eng.analyze(fpath)
+                elif file.endswith(".py") and "__init__" not in file:
+                    inventory["doctypes"][dt_name]["logic"] = ctrl_eng.analyze(fpath)
+
+    # Save RAW JSON
+    with open(f"{OUTPUT_DIR}/raw_snapshot.json", "w") as f:
+        json.dump(inventory, f, indent=4)
+
+    # Save AI-Optimized Markdown
+    with open(f"{OUTPUT_DIR}/ai_ready_context.md", "w") as f:
+        f.write(formatter.format_for_prompt(inventory))
+    
+    print(f"✅ Success! AI context generated in /{OUTPUT_DIR}")
 
 if __name__ == "__main__":
-    test_discovery(REPO_PATH)
-    # If the above prints numbers > 0, proceed to parsing:
-    # parser = ERPNextParser(REPO_PATH)
-    # ... rest of your code ...
+    run_all()

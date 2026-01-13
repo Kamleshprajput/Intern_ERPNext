@@ -1,23 +1,37 @@
 import ast
 import os
-
-class ControllerAnalyzer:
-    """Parses Python controllers with Enterprise detail (docstrings & type hints)."""
-    
-    def analyze_file(self, file_path):
-        with open(file_path, "r") as f:
-            tree = ast.parse(f.read())
+class ControllerEngine:
+    def analyze(self, py_path):
+        """Parses Python controllers to map methods and API endpoints."""
+        try:
+            with open(py_path, "r", encoding="utf-8") as f:
+                tree = ast.parse(f.read())
             
-        data = {"methods": {}}
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef):
-                # We capture docstrings so the AI knows 'WHY' the code exists
-                docstring = ast.get_docstring(node)
-                args = [arg.arg for arg in node.args.args]
-                
-                data["methods"][node.name] = {
-                    "parameters": args,
-                    "description": docstring or "No documentation provided.",
-                    "line_number": node.lineno
-                }
-        return data
+            analysis = {
+                "methods": [],
+                "imports": []
+            }
+
+            for node in ast.walk(tree):
+                # Capture imports to understand dependencies
+                if isinstance(node, (ast.Import, ast.ImportFrom)):
+                    analysis["imports"].append(ast.dump(node))
+
+                # Capture Class methods
+                if isinstance(node, ast.FunctionDef):
+                    # Check for @frappe.whitelist() decorator
+                    is_whitelisted = any(
+                        (isinstance(d, ast.Name) and d.id == 'whitelist') or
+                        (isinstance(d, ast.Attribute) and d.attr == 'whitelist')
+                        for d in node.decorator_list
+                    )
+                    
+                    analysis["methods"].append({
+                        "name": node.name,
+                        "is_api": is_whitelisted,
+                        "args": [a.arg for a in node.args.args if a.arg != 'self'],
+                        "doc": ast.get_docstring(node) or "No docstring provided."
+                    })
+            return analysis
+        except Exception as e:
+            return {"error": str(e)}
