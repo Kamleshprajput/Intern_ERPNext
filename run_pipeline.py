@@ -1,26 +1,27 @@
-import ast
 import os
-import json
-from erpnext_analyzer.core.metadata_engine import SchemaAnalyzer
-from erpnext_analyzer.core.controller_engine import ControllerAnalyzer
-def generate_ai_context_package(app_path):
-    # 1. Initialize Engines
-    schema_eng = SchemaAnalyzer()
-    logic_eng = ControllerAnalyzer()
-    
-    full_inventory = {}
+from erpnext_analyzer.core.parser import ERPNextParser
 
-    # 2. Walk through the ERPNext structure
-    # ERPNext stores things in: erpnext/[module]/doctype/[name]/...
-    for root, dirs, files in os.walk(app_path):
-        if "doctype" in root:
-            doctype_name = os.path.basename(root)
-            full_inventory[doctype_name] = {}
-            
-            for file in files:
-                if file.endswith(".json"):
-                    full_inventory[doctype_name]["schema"] = schema_eng.analyze_json(os.path.join(root, file))
-                if file.endswith(".py") and file != "__init__.py":
-                    full_inventory[doctype_name]["logic"] = logic_eng.analyze_file(os.path.join(root, file))
-                    
-    return full_inventory
+# Use absolute paths to avoid any "No Output" confusion
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_PATH = os.path.join(BASE_DIR, "Intern_ERPNext")
+
+def test_discovery(path):
+    print(f"--- Discovery Test for: {path} ---")
+    py_files = []
+    json_files = []
+    for root, _, files in os.walk(path):
+        for f in files:
+            if f.endswith(".py"): py_files.append(f)
+            if f.endswith(".json"): json_files.append(f)
+    
+    print(f"Found {len(py_files)} Python files.")
+    print(f"Found {len(json_files)} JSON files.")
+    
+    if not py_files and not json_files:
+        print("ERROR: No files found! Check if the folder 'Intern_ERPNext' is in the same directory as this script.")
+
+if __name__ == "__main__":
+    test_discovery(REPO_PATH)
+    # If the above prints numbers > 0, proceed to parsing:
+    # parser = ERPNextParser(REPO_PATH)
+    # ... rest of your code ...
