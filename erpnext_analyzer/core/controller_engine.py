@@ -20,11 +20,22 @@ class ControllerEngine:
                 # Capture Class methods
                 if isinstance(node, ast.FunctionDef):
                     # Check for @frappe.whitelist() decorator
-                    is_whitelisted = any(
-                        (isinstance(d, ast.Name) and d.id == 'whitelist') or
-                        (isinstance(d, ast.Attribute) and d.attr == 'whitelist')
-                        for d in node.decorator_list
-                    )
+                    # Handles: @frappe.whitelist(), @frappe.whitelist(allow_guest=True), etc.
+                    is_whitelisted = False
+                    for d in node.decorator_list:
+                        # Handle @frappe.whitelist() - ast.Call with ast.Attribute
+                        if isinstance(d, ast.Call):
+                            if isinstance(d.func, ast.Attribute) and d.func.attr == 'whitelist':
+                                is_whitelisted = True
+                                break
+                        # Handle @whitelist (direct name)
+                        elif isinstance(d, ast.Name) and d.id == 'whitelist':
+                            is_whitelisted = True
+                            break
+                        # Handle @frappe.whitelist (attribute without call)
+                        elif isinstance(d, ast.Attribute) and d.attr == 'whitelist':
+                            is_whitelisted = True
+                            break
                     
                     analysis["methods"].append({
                         "name": node.name,

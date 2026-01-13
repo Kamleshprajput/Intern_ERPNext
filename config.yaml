@@ -1,0 +1,14 @@
+# ERPNext Analyzer Configuration
+# Set the path to your custom Frappe app directory
+# 
+# Examples:
+#   - To analyze a custom app: "C:/path/to/your_app"
+#   - To analyze erpnext_v14: "./erpnext_v14/erpnext"
+#   - To analyze erpnext_v15: "./erpnext_v15/erpnext"
+#   - Leave null for auto-detection
+#
+# The path should point to the app directory containing hooks.py
+
+app_path:./erpnext_v14
+
+

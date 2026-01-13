@@ -14,23 +14,37 @@ class MetadataEngine:
             if data.get("doctype") != "DocType":
                 return None
 
+            fields = data.get("fields", [])
+            # Handle both list and dict formats
+            if isinstance(fields, list):
+                fields_list = [
+                    {
+                        "fieldname": f.get("fieldname") if isinstance(f, dict) else str(f),
+                        "fieldtype": f.get("fieldtype") if isinstance(f, dict) else "Unknown",
+                        "label": f.get("label") if isinstance(f, dict) else "",
+                        "reqd": f.get("reqd", 0) if isinstance(f, dict) else 0
+                    }
+                    for f in fields
+                ]
+            else:
+                fields_list = []
+            
+            permissions = data.get("permissions", [])
+            if isinstance(permissions, list):
+                permissions_list = [
+                    {"role": p.get("role") if isinstance(p, dict) else str(p), 
+                     "read": p.get("read") if isinstance(p, dict) else 0}
+                    for p in permissions
+                ]
+            else:
+                permissions_list = []
+            
             return {
                 "name": data.get("name"),
                 "module": data.get("module"),
                 "is_submittable": data.get("is_submittable", 0),
-                "fields": [
-                    {
-                        "fieldname": f.get("fieldname"),
-                        "fieldtype": f.get("fieldtype"),
-                        "label": f.get("label"),
-                        "reqd": f.get("reqd", 0)
-                    }
-                    for f in data.get("fields", [])
-                ],
-                "permissions": [
-                    {"role": p.get("role"), "read": p.get("read")}
-                    for p in data.get("permissions", [])
-                ]
+                "fields": fields_list,
+                "permissions": permissions_list
             }
         except Exception as e:
             return {"error": str(e)}
